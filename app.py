@@ -271,6 +271,13 @@ def parse_time_range(time_range_str):
     except:
         return None
 
+def parse_single_time(time_str):
+    """Parse single time string (e.g., '09:00') and return time object"""
+    try:
+        return datetime.strptime(time_str.strip(), '%H:%M').time()
+    except:
+        return None
+
 def calculate_time_difference(start_datetime, end_datetime):
     """Calculate time difference in minutes"""
     if start_datetime and end_datetime:
@@ -778,7 +785,11 @@ def main():
                 order_details = today_reservations[
                     today_reservations['Orden_de_compra'] == selected_order_tab1
                 ].iloc[0]
-                booked_start_time = parse_time_range(str(order_details['Hora']))
+                # Try parsing as single time first (new format), then as range (old format)
+                booked_start_time = parse_single_time(str(order_details['Hora']))
+                if not booked_start_time:
+                    booked_start_time = parse_time_range(str(order_details['Hora']))
+                
                 if booked_start_time:
                     default_hour = booked_start_time.hour
                     default_minute = booked_start_time.minute
@@ -803,8 +814,8 @@ def main():
             with time_col2:
                 arrival_minute = st.selectbox(
                     "Minutos:",
-                    options=list(range(0, 60, 5)),  # 5-minute intervals
-                    index=default_minute // 5,  # Find closest 5-minute interval
+                    options=list(range(0, 60, 1)),  # 1-minute intervals
+                    index=default_minute,  # Direct minute value
                     format_func=lambda x: f"{x:02d}",
                     key="arrival_minute_tab1"
                 )
@@ -825,14 +836,18 @@ def main():
                 arrival_datetime = combine_date_time(today_date, arrival_time)
                 
                 # Calculate delay
-                booked_start_time = parse_time_range(str(order_details['Hora']))
+                # Try parsing as single time first (new format), then as range (old format)
+                booked_start_time = parse_single_time(str(order_details['Hora']))
+                if not booked_start_time:
+                    booked_start_time = parse_time_range(str(order_details['Hora']))
+                
                 tiempo_retraso = None
                 hora_de_reserva = None
                 
                 if booked_start_time:
                     booked_datetime = combine_date_time(today_date, booked_start_time)
                     tiempo_retraso = calculate_time_difference(booked_datetime, arrival_datetime)
-                    # Extract hour for hora_de_reserva (e.g., 9 for "9:00-9:30" or "9:30-10:00")
+                    # Extract hour for hora_de_reserva (e.g., 9 for "9:00" or "9:00-9:30")
                     hora_de_reserva = booked_start_time.hour
                 
                 # Prepare arrival data
@@ -925,7 +940,7 @@ def main():
                     # Parse arrival time for defaults
                     arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
                     default_hour = arrival_datetime.hour
-                    default_minute = (arrival_datetime.minute // 5) * 5  # Round to nearest 5-minute interval
+                    default_minute = arrival_datetime.minute  # Use exact minute instead of rounding
                     
                     with col1:
                         st.write("**Hora de Inicio de Atención:**")
@@ -943,8 +958,8 @@ def main():
                         with start_time_col2:
                             start_minute = st.selectbox(
                                 "Minutos:",
-                                options=list(range(0, 60, 5)),  # 5-minute intervals
-                                index=default_minute // 5,
+                                options=list(range(0, 60, 1)),  # 1-minute intervals
+                                index=default_minute,  # Direct minute value
                                 format_func=lambda x: f"{x:02d}",
                                 key="start_minute_tab2"
                             )
@@ -967,8 +982,8 @@ def main():
                         with end_time_col2:
                             end_minute = st.selectbox(
                                 "Minutos:",
-                                options=list(range(0, 60, 5)),  # 5-minute intervals
-                                index=default_minute // 5,
+                                options=list(range(0, 60, 1)),  # 1-minute intervals
+                                index=default_minute,  # Direct minute value
                                 format_func=lambda x: f"{x:02d}",
                                 key="end_minute_tab2"
                             )
@@ -1021,7 +1036,10 @@ def main():
                                         tiempo_retraso_display = None
                                         if not order_reserva.empty:
                                             booked_time_range = str(order_reserva.iloc[0]['Hora'])
-                                            booked_start_time = parse_time_range(booked_time_range)
+                                            # Try parsing as single time first (new format), then as range (old format)
+                                            booked_start_time = parse_single_time(booked_time_range)
+                                            if not booked_start_time:
+                                                booked_start_time = parse_time_range(booked_time_range)
                                             if booked_start_time:
                                                 booked_datetime = combine_date_time(arrival_datetime.date(), booked_start_time)
                                                 tiempo_retraso_display = calculate_time_difference(booked_datetime, arrival_datetime)
@@ -1184,4 +1202,4 @@ def main():
             st.info("No hay datos de horas de reserva para el período especificado.")
 
 if __name__ == "__main__":
-    main()
+    main()a
