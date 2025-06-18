@@ -794,19 +794,30 @@ def main():
                     default_hour = booked_start_time.hour
                     default_minute = booked_start_time.minute
                 else:
-                    default_hour = datetime.now().hour
-                    default_minute = datetime.now().minute
+                    current_time = datetime.now()
+                    # Ensure default hour is within working hours (9-15)
+                    default_hour = max(9, min(15, current_time.hour))
+                    default_minute = current_time.minute
             else:
-                default_hour = datetime.now().hour
-                default_minute = datetime.now().minute
+                current_time = datetime.now()
+                # Ensure default hour is within working hours (9-15)
+                default_hour = max(9, min(15, current_time.hour))
+                default_minute = current_time.minute
             
             # Create user-friendly time picker
             time_col1, time_col2 = st.columns(2)
             with time_col1:
+                working_hours = list(range(9, 16))  # 09, 10, 11, 12, 13, 14, 15
+                # Find the index for default hour
+                try:
+                    hour_index = working_hours.index(default_hour)
+                except ValueError:
+                    hour_index = 0  # Default to first option if not in range
+                
                 arrival_hour = st.selectbox(
                     "Hora:",
-                    options=list(range(0, 24)),
-                    index=default_hour,
+                    options=working_hours,
+                    index=hour_index,
                     format_func=lambda x: f"{x:02d}",
                     key="arrival_hour_tab1"
                 )
@@ -939,7 +950,8 @@ def main():
                     
                     # Parse arrival time for defaults
                     arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
-                    default_hour = arrival_datetime.hour
+                    # Ensure default hour is within working hours (9-15)
+                    default_hour = max(9, min(15, arrival_datetime.hour))
                     default_minute = arrival_datetime.minute  # Use exact minute instead of rounding
                     
                     with col1:
@@ -947,10 +959,17 @@ def main():
                         
                         start_time_col1, start_time_col2 = st.columns(2)
                         with start_time_col1:
+                            working_hours = list(range(9, 16))  # 09, 10, 11, 12, 13, 14, 15
+                            # Find the index for default hour
+                            try:
+                                start_hour_index = working_hours.index(default_hour)
+                            except ValueError:
+                                start_hour_index = 0  # Default to first option if not in range
+                            
                             start_hour = st.selectbox(
                                 "Hora:",
-                                options=list(range(0, 24)),
-                                index=default_hour,
+                                options=working_hours,
+                                index=start_hour_index,
                                 format_func=lambda x: f"{x:02d}",
                                 key="start_hour_tab2"
                             )
@@ -971,10 +990,17 @@ def main():
                         
                         end_time_col1, end_time_col2 = st.columns(2)
                         with end_time_col1:
+                            working_hours = list(range(9, 16))  # 09, 10, 11, 12, 13, 14, 15
+                            # Find the index for default hour
+                            try:
+                                end_hour_index = working_hours.index(default_hour)
+                            except ValueError:
+                                end_hour_index = 0  # Default to first option if not in range
+                            
                             end_hour = st.selectbox(
                                 "Hora:",
-                                options=list(range(0, 24)),
-                                index=default_hour,
+                                options=working_hours,
+                                index=end_hour_index,
                                 format_func=lambda x: f"{x:02d}",
                                 key="end_hour_tab2"
                             )
