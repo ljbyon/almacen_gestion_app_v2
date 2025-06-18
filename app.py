@@ -338,13 +338,20 @@ def aggregate_by_week(df, provider_filter=None):
     
     return weekly_data
 
-def aggregate_by_hour(df, weeks_back):
-    """Aggregate data by reservation hour for selected weeks"""
+def aggregate_by_hour(df, weeks_back, provider_filter=None):
+    """Aggregate data by reservation hour for selected weeks and provider"""
     if df.empty:
         return pd.DataFrame()
     
     # Get completed weeks data
     filtered_df = get_completed_weeks_data(df, weeks_back)
+    
+    if filtered_df.empty:
+        return pd.DataFrame()
+    
+    # Filter by provider if specified
+    if provider_filter and provider_filter != "Todos":
+        filtered_df = filtered_df[filtered_df['Proveedor'] == provider_filter]
     
     if filtered_df.empty:
         return pd.DataFrame()
@@ -1206,14 +1213,17 @@ def main():
         
         # Graph 3: Hourly Time Metrics
         st.subheader("🕐 Gráfico 3: Tiempos por Hora de Reserva")
-        hourly_data = aggregate_by_hour(gestion_df, selected_weeks)
+        hourly_data = aggregate_by_hour(gestion_df, selected_weeks, selected_provider)
         
         if not hourly_data.empty:
             fig3 = create_hourly_times_chart(hourly_data)
             if fig3:
                 st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.info("No hay datos de horas de reserva para el período especificado.")
+            if selected_provider != "Todos":
+                st.info(f"No hay datos de horas de reserva para el proveedor {selected_provider} en el período especificado.")
+            else:
+                st.info("No hay datos de horas de reserva para el período especificado.")
         
         st.markdown("---")
         
@@ -1225,7 +1235,10 @@ def main():
             if fig4:
                 st.plotly_chart(fig4, use_container_width=True)
         else:
-            st.info("No hay datos de horas de reserva para el período especificado.")
+            if selected_provider != "Todos":
+                st.info(f"No hay datos de horas de reserva para el proveedor {selected_provider} en el período especificado.")
+            else:
+                st.info("No hay datos de horas de reserva para el período especificado.")
 
 if __name__ == "__main__":
     main()
