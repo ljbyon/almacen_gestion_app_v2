@@ -788,23 +788,43 @@ def main():
                 st.write("**Hora de Llegada:**")
                 today_date = datetime.now().date()
                 
-                # Get default time from booked hour
+                # Get default time from booked hour in reservations
                 order_details = today_reservations[
                     today_reservations['Orden_de_compra'] == selected_order_tab1
                 ].iloc[0]
-                # Try parsing as single time first (new format), then as range (old format)
-                booked_start_time = parse_single_time(str(order_details['Hora']))
-                if not booked_start_time:
-                    booked_start_time = parse_time_range(str(order_details['Hora']))
                 
+                # Parse the reserved time from the Hora column
+                hora_str = str(order_details['Hora']).strip()
+                booked_start_time = parse_single_time(hora_str)
+                if not booked_start_time:
+                    booked_start_time = parse_time_range(hora_str)
+                
+                # Set default hour and minute based on reserved time
                 if booked_start_time:
                     default_hour = booked_start_time.hour
                     default_minute = booked_start_time.minute
                 else:
-                    current_time = datetime.now()
-                    # Ensure default hour is within working hours (9-15)
-                    default_hour = max(9, min(15, current_time.hour))
-                    default_minute = current_time.minute
+                    # Fallback: try to extract hour and minute manually
+                    try:
+                        if ':' in hora_str:
+                            time_parts = hora_str.split(':')
+                            default_hour = int(time_parts[0])
+                            default_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                        else:
+                            # If all parsing fails, use current time
+                            current_time = datetime.now()
+                            default_hour = max(9, min(18, current_time.hour))
+                            default_minute = 0
+                    except:
+                        # Final fallback
+                        current_time = datetime.now()
+                        default_hour = max(9, min(18, current_time.hour))
+                        default_minute = 0
+                
+                # Ensure hour is within working range
+                default_hour = max(9, min(18, default_hour))
+                # Ensure minute is within valid range
+                default_minute = max(0, min(59, default_minute))
                 
                 # Create user-friendly time picker
                 time_col1, time_col2 = st.columns(2)
@@ -828,7 +848,7 @@ def main():
                     arrival_minute = st.selectbox(
                         "Minutos:",
                         options=list(range(0, 60, 1)),  # 1-minute intervals
-                        index=default_minute,  # Direct minute value
+                        index=default_minute,  # Direct minute value as index
                         format_func=lambda x: f"{x:02d}",
                         key="arrival_minute_tab1"
                     )
@@ -837,6 +857,9 @@ def main():
                 arrival_time = dt_time(arrival_hour, arrival_minute)
                 
                 st.info(f"Fecha: {today_date.strftime('%Y-%m-%d')}")
+                
+                # Debug info (you can remove this later)
+                st.caption(f"Hora reservada: {hora_str} → Hora por defecto: {default_hour:02d}:{default_minute:02d}")
             else:
                 # When no order is selected, set arrival_time to None
                 arrival_time = None
