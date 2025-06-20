@@ -882,13 +882,15 @@ def main():
                     # Debug: Let's see what the actual time value looks like
                     hora_str = str(order_details['Hora']).strip()
                     
+                    # Show debug info for troubleshooting
+                    st.write(f"DEBUG - Hora reservada: {hora_str}")
+                    st.write(f"DEBUG - Type of Hora: {type(order_details['Hora'])}")
+                    
                     # Try parsing as single time first (new format), then as range (old format)
                     booked_start_time = parse_single_time(hora_str)
                     if not booked_start_time:
                         booked_start_time = parse_time_range(hora_str)
                     
-                    # Show debug info for troubleshooting
-                    st.write(f"DEBUG - Hora reservada: {hora_str}")
                     st.write(f"DEBUG - Parsed time: {booked_start_time}")
                     st.write(f"DEBUG - Arrival time: {arrival_datetime}")
                     
@@ -904,18 +906,34 @@ def main():
                         # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
                         hora_de_reserva = booked_start_time.hour
                     else:
-                        st.write("DEBUG - Could not parse booked time, trying manual extraction")
-                        # Fallback: try to extract hour manually if parsing fails
+                        st.write("DEBUG - Could not parse booked time, trying manual calculation")
+                        # Fallback: try to extract hour and calculate delay manually
                         try:
                             # Handle formats like "10:00:00", "10:30:00", etc.
                             if ':' in hora_str:
-                                hour_part = hora_str.split(':')[0]
-                                hora_de_reserva = int(hour_part)
+                                time_parts = hora_str.split(':')
+                                booked_hour = int(time_parts[0])
+                                booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                                booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                                
+                                # Create booked datetime manually
+                                booked_datetime = datetime.combine(
+                                    datetime.now().date(), 
+                                    dt_time(booked_hour, booked_minute, booked_second)
+                                )
+                                
+                                # Calculate delay manually
+                                tiempo_retraso = calculate_time_difference(booked_datetime, arrival_datetime)
+                                hora_de_reserva = booked_hour
+                                
+                                st.write(f"DEBUG - Manual booked datetime: {booked_datetime}")
+                                st.write(f"DEBUG - Manual calculated delay: {tiempo_retraso}")
                                 st.write(f"DEBUG - Manually extracted hour: {hora_de_reserva}")
-                        except:
-                            # If all else fails, set to None
+                        except Exception as e:
+                            # If all else fails, set to defaults
                             hora_de_reserva = None
-                            st.write("DEBUG - Failed to extract hour manually")
+                            tiempo_retraso = 0
+                            st.write(f"DEBUG - Failed manual calculation: {str(e)}")
                     
                     st.write(f"DEBUG - Final tiempo_retraso: {tiempo_retraso}")
                     st.write(f"DEBUG - Final hora_de_reserva: {hora_de_reserva}")
