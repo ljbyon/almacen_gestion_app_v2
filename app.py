@@ -574,7 +574,7 @@ def get_pending_arrivals(today_reservations, gestion_df):
         ~today_reservations['Orden_de_compra'].isin(processed_orders)
     ]
     
-    return pending['Orden_de_compra'].tolist()
+    return  sorted(pending['Orden_de_compra'].tolist())
 
 def get_arrival_record(gestion_df, orden_compra):
     """Get existing arrival record for an order"""
