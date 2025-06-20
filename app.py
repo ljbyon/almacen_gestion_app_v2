@@ -852,14 +852,17 @@ def main():
                     
                     arrival_datetime = combine_date_time(datetime.now().date(), arrival_time)
                     
-                    # Calculate delay
-                    # Try parsing as single time first (new format), then as range (old format)
-                    booked_start_time = parse_single_time(str(order_details['Hora']))
-                    if not booked_start_time:
-                        booked_start_time = parse_time_range(str(order_details['Hora']))
-                    
+                    # Calculate delay and extract reservation hour
                     tiempo_retraso = 0  # Default to 0 if can't calculate
                     hora_de_reserva = None
+                    
+                    # Debug: Let's see what the actual time value looks like
+                    hora_str = str(order_details['Hora']).strip()
+                    
+                    # Try parsing as single time first (new format), then as range (old format)
+                    booked_start_time = parse_single_time(hora_str)
+                    if not booked_start_time:
+                        booked_start_time = parse_time_range(hora_str)
                     
                     if booked_start_time:
                         booked_datetime = combine_date_time(datetime.now().date(), booked_start_time)
@@ -868,6 +871,16 @@ def main():
                             tiempo_retraso = calculated_delay
                         # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
                         hora_de_reserva = booked_start_time.hour
+                    else:
+                        # Fallback: try to extract hour manually if parsing fails
+                        try:
+                            # Handle formats like "10:00:00", "10:30:00", etc.
+                            if ':' in hora_str:
+                                hour_part = hora_str.split(':')[0]
+                                hora_de_reserva = int(hour_part)
+                        except:
+                            # If all else fails, set to None
+                            hora_de_reserva = None
                     
                     # Prepare arrival data
                     arrival_data = {
