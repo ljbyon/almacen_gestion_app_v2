@@ -1195,7 +1195,7 @@ def main():
                                             
                                             # Wait 5 seconds before refreshing
                                             with st.spinner("Actualizando datos..."):
-                                                time.sleep(5)
+                                                time.sleep(10)
                                             st.rerun()
                                         else:
                                             st.error("Error al guardar la atención. Intente nuevamente.")
