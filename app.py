@@ -540,7 +540,7 @@ def get_existing_arrivals(gestion_df):
         today_arrivals['Hora_fin_atencion'].isna()
     ]
     
-    return pending_service['Orden_de_compra'].tolist()
+    return sorted(pending_service['Orden_de_compra'].tolist())
 
 def get_completed_orders(gestion_df):
     """Get orders that have both arrival and service registered today"""
