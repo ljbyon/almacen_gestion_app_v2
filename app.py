@@ -1084,12 +1084,15 @@ def main():
                                         with col2:
                                             st.metric("Tiempo Total", f"{tiempo_total} min")
                                             # Display calculated delay
-                                            if tiempo_retraso_display > 0:
-                                                st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
-                                            elif tiempo_retraso_display < 0:
-                                                st.metric("Tiempo de Adelanto", f"{abs(tiempo_retraso_display)} min")
+                                            if tiempo_retraso_display is not None:
+                                                if tiempo_retraso_display > 0:
+                                                    st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
+                                                elif tiempo_retraso_display < 0:
+                                                    st.metric("Tiempo de Adelanto", f"{abs(tiempo_retraso_display)} min")
+                                                else:
+                                                    st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
                                             else:
-                                                st.metric("Puntualidad", "A tiempo")
+                                                st.metric("Tiempo de Retraso", "N/A")
                                         
                                         # Wait 5 seconds before refreshing
                                         with st.spinner("Actualizando datos..."):
