@@ -887,23 +887,38 @@ def main():
                     if not booked_start_time:
                         booked_start_time = parse_time_range(hora_str)
                     
+                    # Show debug info for troubleshooting
+                    st.write(f"DEBUG - Hora reservada: {hora_str}")
+                    st.write(f"DEBUG - Parsed time: {booked_start_time}")
+                    st.write(f"DEBUG - Arrival time: {arrival_datetime}")
+                    
                     if booked_start_time:
                         booked_datetime = combine_date_time(datetime.now().date(), booked_start_time)
+                        st.write(f"DEBUG - Booked datetime: {booked_datetime}")
+                        
                         calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
+                        st.write(f"DEBUG - Calculated delay: {calculated_delay}")
+                        
                         if calculated_delay is not None:
                             tiempo_retraso = calculated_delay
                         # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
                         hora_de_reserva = booked_start_time.hour
                     else:
+                        st.write("DEBUG - Could not parse booked time, trying manual extraction")
                         # Fallback: try to extract hour manually if parsing fails
                         try:
                             # Handle formats like "10:00:00", "10:30:00", etc.
                             if ':' in hora_str:
                                 hour_part = hora_str.split(':')[0]
                                 hora_de_reserva = int(hour_part)
+                                st.write(f"DEBUG - Manually extracted hour: {hora_de_reserva}")
                         except:
                             # If all else fails, set to None
                             hora_de_reserva = None
+                            st.write("DEBUG - Failed to extract hour manually")
+                    
+                    st.write(f"DEBUG - Final tiempo_retraso: {tiempo_retraso}")
+                    st.write(f"DEBUG - Final hora_de_reserva: {hora_de_reserva}")
                     
                     # Prepare arrival data
                     arrival_data = {
