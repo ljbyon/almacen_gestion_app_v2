@@ -866,7 +866,7 @@ def main():
                         calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
                         if calculated_delay is not None:
                             tiempo_retraso = calculated_delay
-                        # Extract hour for hora_de_reserva (e.g., 9 for "9:00" or "9:00-9:30")
+                        # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
                         hora_de_reserva = booked_start_time.hour
                     
                     # Prepare arrival data
