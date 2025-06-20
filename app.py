@@ -523,6 +523,7 @@ def create_hourly_delay_chart(hourly_data):
     )
     
     return fig
+
 def get_existing_arrivals(gestion_df):
     """Get orders that already have arrival registered today but not yet completed"""
     today = datetime.now().strftime('%Y-%m-%d')
@@ -574,7 +575,7 @@ def get_pending_arrivals(today_reservations, gestion_df):
         ~today_reservations['Orden_de_compra'].isin(processed_orders)
     ]
     
-    return  sorted(pending['Orden_de_compra'].tolist())
+    return sorted(pending['Orden_de_compra'].tolist())
 
 def get_arrival_record(gestion_df, orden_compra):
     """Get existing arrival record for an order"""
@@ -747,23 +748,27 @@ def main():
         st.error("No se pudo cargar los datos. Verifique la conexión.")
         return
     
-    # Get today's reservations
-    today_reservations = get_today_reservations(reservas_df)
-    
-    if today_reservations.empty:
-        st.warning("No hay reservas programadas para hoy.")
-        return
-    
-    # Get order status
-    existing_arrivals = get_existing_arrivals(gestion_df)
-    completed_orders = get_completed_orders(gestion_df)
-    pending_arrivals = get_pending_arrivals(today_reservations, gestion_df)
-    
-    # Create tabs with enhanced styling
+    # Create tabs with enhanced styling - MOVED HERE
     tab1, tab2, tab3 = st.tabs(["🚚 REGISTRO DE LLEGADA", "⚙️ REGISTRO DE ATENCIÓN", "📊 DASHBOARD"])
     
     # Visual separator
     st.markdown('<div class="tab-separator"></div>', unsafe_allow_html=True)
+    
+    # Get today's reservations
+    today_reservations = get_today_reservations(reservas_df)
+    
+    # Check if there are reservations for today (for tabs 1 and 2 only)
+    no_reservations_today = today_reservations.empty
+    
+    # Get order status (only if there are reservations)
+    if not no_reservations_today:
+        existing_arrivals = get_existing_arrivals(gestion_df)
+        completed_orders = get_completed_orders(gestion_df)
+        pending_arrivals = get_pending_arrivals(today_reservations, gestion_df)
+    else:
+        existing_arrivals = []
+        completed_orders = []
+        pending_arrivals = []
     
     # ─────────────────────────────────────────────────────────────
     # TAB 1: Arrival Registration
@@ -771,206 +776,209 @@ def main():
     with tab1:
         st.markdown("*Registre la hora de llegada del proveedor*")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Order selection - only show orders that haven't been processed
-            if not pending_arrivals:
-                st.info("✅ Todas las llegadas del día han sido registradas")
-                selected_order_tab1 = None
-            else:
-                selected_order_tab1 = st.selectbox(
-                    "Orden de Compra:",
-                    options=pending_arrivals,
-                    key="order_select_tab1"
-                )
+        if no_reservations_today:
+            st.warning("No hay reservas programadas para hoy.")
+        else:
+            col1, col2 = st.columns(2)
             
-            if selected_order_tab1:
-                # Get order details
-                order_details = today_reservations[
-                    today_reservations['Orden_de_compra'] == selected_order_tab1
-                ].iloc[0]
-                
-                # Auto-fill fields
-                st.text_input(
-                    "Proveedor:",
-                    value=order_details['Proveedor'],
-                    disabled=True
-                )
-                
-                st.text_input(
-                    "Número de Bultos:",
-                    value=str(order_details['Numero_de_bultos']),
-                    disabled=True
-                )
-        
-        with col2:
-            if selected_order_tab1:
-                # Arrival time input with friendly UI
-                st.write("**Hora de Llegada:**")
-                today_date = datetime.now().date()
-                
-                # Get default time from booked hour in reservations
-                order_details = today_reservations[
-                    today_reservations['Orden_de_compra'] == selected_order_tab1
-                ].iloc[0]
-                
-                # Parse the reserved time from the Hora column
-                hora_str = str(order_details['Hora']).strip()
-                booked_start_time = parse_single_time(hora_str)
-                if not booked_start_time:
-                    booked_start_time = parse_time_range(hora_str)
-                
-                # Set default hour and minute based on reserved time
-                if booked_start_time:
-                    default_hour = booked_start_time.hour
-                    default_minute = booked_start_time.minute
+            with col1:
+                # Order selection - only show orders that haven't been processed
+                if not pending_arrivals:
+                    st.info("✅ Todas las llegadas del día han sido registradas")
+                    selected_order_tab1 = None
                 else:
-                    # Fallback: try to extract hour and minute manually
-                    try:
-                        if ':' in hora_str:
-                            time_parts = hora_str.split(':')
-                            default_hour = int(time_parts[0])
-                            default_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-                        else:
-                            # If all parsing fails, use current time
-                            current_time = datetime.now()
-                            default_hour = max(9, min(18, current_time.hour))
-                            default_minute = 0
-                    except:
-                        # Final fallback
-                        current_time = datetime.now()
-                        default_hour = max(9, min(18, current_time.hour))
-                        default_minute = 0
-                
-                # Ensure hour is within working range
-                default_hour = max(9, min(18, default_hour))
-                # Ensure minute is within valid range
-                default_minute = max(0, min(59, default_minute))
-                
-                # Create user-friendly time picker
-                time_col1, time_col2 = st.columns(2)
-                with time_col1:
-                    working_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
-                    # Find the index for default hour
-                    try:
-                        hour_index = working_hours.index(default_hour)
-                    except ValueError:
-                        hour_index = 0  # Default to first option if not in range
-                    
-                    arrival_hour = st.selectbox(
-                        "Hora:",
-                        options=working_hours,
-                        index=hour_index,
-                        format_func=lambda x: f"{x:02d}",
-                        key="arrival_hour_tab1"
+                    selected_order_tab1 = st.selectbox(
+                        "Orden de Compra:",
+                        options=pending_arrivals,  # Already sorted in get_pending_arrivals
+                        key="order_select_tab1"
                     )
                 
-                with time_col2:
-                    arrival_minute = st.selectbox(
-                        "Minutos:",
-                        options=list(range(0, 60, 1)),  # 1-minute intervals
-                        index=default_minute,  # Direct minute value as index
-                        format_func=lambda x: f"{x:02d}",
-                        key="arrival_minute_tab1"
-                    )
-                
-                # Combine into time object
-                arrival_time = dt_time(arrival_hour, arrival_minute)
-                
-                st.info(f"Fecha: {today_date.strftime('%Y-%m-%d')}")
-            else:
-                # When no order is selected, set arrival_time to None
-                arrival_time = None
-        
-        # Save arrival button - only show when order is selected
-        if selected_order_tab1:
-            if st.button("Guardar Llegada", type="primary", key="save_arrival"):
-                if arrival_time:
-                    # Get order details for delay calculation
+                if selected_order_tab1:
+                    # Get order details
                     order_details = today_reservations[
                         today_reservations['Orden_de_compra'] == selected_order_tab1
                     ].iloc[0]
                     
-                    arrival_datetime = combine_date_time(datetime.now().date(), arrival_time)
+                    # Auto-fill fields
+                    st.text_input(
+                        "Proveedor:",
+                        value=order_details['Proveedor'],
+                        disabled=True
+                    )
                     
-                    # Calculate delay and extract reservation hour
-                    tiempo_retraso = 0  # Default to 0 if can't calculate
-                    hora_de_reserva = None
+                    st.text_input(
+                        "Número de Bultos:",
+                        value=str(order_details['Numero_de_bultos']),
+                        disabled=True
+                    )
+            
+            with col2:
+                if selected_order_tab1:
+                    # Arrival time input with friendly UI
+                    st.write("**Hora de Llegada:**")
+                    today_date = datetime.now().date()
                     
-                    # Get the actual time value from Excel
+                    # Get default time from booked hour in reservations
+                    order_details = today_reservations[
+                        today_reservations['Orden_de_compra'] == selected_order_tab1
+                    ].iloc[0]
+                    
+                    # Parse the reserved time from the Hora column
                     hora_str = str(order_details['Hora']).strip()
-                    
-                    # Try parsing as single time first (new format), then as range (old format)
                     booked_start_time = parse_single_time(hora_str)
                     if not booked_start_time:
                         booked_start_time = parse_time_range(hora_str)
                     
+                    # Set default hour and minute based on reserved time
                     if booked_start_time:
-                        booked_datetime = combine_date_time(datetime.now().date(), booked_start_time)
-                        calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
-                        if calculated_delay is not None:
-                            tiempo_retraso = calculated_delay
-                        # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
-                        hora_de_reserva = booked_start_time.hour
+                        default_hour = booked_start_time.hour
+                        default_minute = booked_start_time.minute
                     else:
-                        # Fallback: manual calculation for formats like "10:00:00"
+                        # Fallback: try to extract hour and minute manually
                         try:
                             if ':' in hora_str:
                                 time_parts = hora_str.split(':')
-                                booked_hour = int(time_parts[0])
-                                booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-                                booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
-                                
-                                # Create booked datetime manually
-                                booked_datetime = datetime.combine(
-                                    datetime.now().date(), 
-                                    dt_time(booked_hour, booked_minute, booked_second)
-                                )
-                                
-                                # Calculate delay manually
-                                tiempo_retraso = calculate_time_difference(booked_datetime, arrival_datetime)
-                                hora_de_reserva = booked_hour
-                        except Exception:
-                            # If all else fails, set to defaults
-                            hora_de_reserva = None
-                            tiempo_retraso = 0
-                    
-                    # Prepare arrival data
-                    arrival_data = {
-                        'Orden_de_compra': selected_order_tab1,
-                        'Proveedor': order_details['Proveedor'],
-                        'Numero_de_bultos': order_details['Numero_de_bultos'],
-                        'Hora_llegada': arrival_datetime.strftime('%Y-%m-%d %H:%M:%S'),
-                        'Hora_inicio_atencion': None,
-                        'Hora_fin_atencion': None,
-                        'Tiempo_espera': None,
-                        'Tiempo_atencion': None,
-                        'Tiempo_total': None,
-                        'Tiempo_retraso': tiempo_retraso,
-                        'numero_de_semana': arrival_datetime.isocalendar()[1],
-                        'hora_de_reserva': hora_de_reserva
-                    }
-                    
-                    # Save to Excel
-                    with st.spinner("Guardando llegada..."):
-                        if save_arrival_to_excel(arrival_data):
-                            st.success("✅ Llegada registrada exitosamente!")
-                            if tiempo_retraso > 0:
-                                st.warning(f"⏰ Retraso: {tiempo_retraso} minutos")
-                            elif tiempo_retraso < 0:
-                                st.info(f"⚡ Adelanto: {abs(tiempo_retraso)} minutos")
+                                default_hour = int(time_parts[0])
+                                default_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
                             else:
-                                st.success("🎯 Llegada puntual")
-                            
-                            # Wait 5 seconds before refreshing
-                            with st.spinner("Actualizando datos..."):
-                                time.sleep(5)
-                            st.rerun()
-                        else:
-                            st.error("Error al guardar la llegada. Intente nuevamente.")
+                                # If all parsing fails, use current time
+                                current_time = datetime.now()
+                                default_hour = max(9, min(18, current_time.hour))
+                                default_minute = 0
+                        except:
+                            # Final fallback
+                            current_time = datetime.now()
+                            default_hour = max(9, min(18, current_time.hour))
+                            default_minute = 0
+                    
+                    # Ensure hour is within working range
+                    default_hour = max(9, min(18, default_hour))
+                    # Ensure minute is within valid range
+                    default_minute = max(0, min(59, default_minute))
+                    
+                    # Create user-friendly time picker
+                    time_col1, time_col2 = st.columns(2)
+                    with time_col1:
+                        working_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
+                        # Find the index for default hour
+                        try:
+                            hour_index = working_hours.index(default_hour)
+                        except ValueError:
+                            hour_index = 0  # Default to first option if not in range
+                        
+                        arrival_hour = st.selectbox(
+                            "Hora:",
+                            options=working_hours,
+                            index=hour_index,
+                            format_func=lambda x: f"{x:02d}",
+                            key="arrival_hour_tab1"
+                        )
+                    
+                    with time_col2:
+                        arrival_minute = st.selectbox(
+                            "Minutos:",
+                            options=list(range(0, 60, 1)),  # 1-minute intervals
+                            index=default_minute,  # Direct minute value as index
+                            format_func=lambda x: f"{x:02d}",
+                            key="arrival_minute_tab1"
+                        )
+                    
+                    # Combine into time object
+                    arrival_time = dt_time(arrival_hour, arrival_minute)
+                    
+                    st.info(f"Fecha: {today_date.strftime('%Y-%m-%d')}")
                 else:
-                    st.error("Por favor complete todos los campos.")
+                    # When no order is selected, set arrival_time to None
+                    arrival_time = None
+            
+            # Save arrival button - only show when order is selected
+            if selected_order_tab1:
+                if st.button("Guardar Llegada", type="primary", key="save_arrival"):
+                    if arrival_time:
+                        # Get order details for delay calculation
+                        order_details = today_reservations[
+                            today_reservations['Orden_de_compra'] == selected_order_tab1
+                        ].iloc[0]
+                        
+                        arrival_datetime = combine_date_time(datetime.now().date(), arrival_time)
+                        
+                        # Calculate delay and extract reservation hour
+                        tiempo_retraso = 0  # Default to 0 if can't calculate
+                        hora_de_reserva = None
+                        
+                        # Get the actual time value from Excel
+                        hora_str = str(order_details['Hora']).strip()
+                        
+                        # Try parsing as single time first (new format), then as range (old format)
+                        booked_start_time = parse_single_time(hora_str)
+                        if not booked_start_time:
+                            booked_start_time = parse_time_range(hora_str)
+                        
+                        if booked_start_time:
+                            booked_datetime = combine_date_time(datetime.now().date(), booked_start_time)
+                            calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
+                            if calculated_delay is not None:
+                                tiempo_retraso = calculated_delay
+                            # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
+                            hora_de_reserva = booked_start_time.hour
+                        else:
+                            # Fallback: manual calculation for formats like "10:00:00"
+                            try:
+                                if ':' in hora_str:
+                                    time_parts = hora_str.split(':')
+                                    booked_hour = int(time_parts[0])
+                                    booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                                    booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                                    
+                                    # Create booked datetime manually
+                                    booked_datetime = datetime.combine(
+                                        datetime.now().date(), 
+                                        dt_time(booked_hour, booked_minute, booked_second)
+                                    )
+                                    
+                                    # Calculate delay manually
+                                    tiempo_retraso = calculate_time_difference(booked_datetime, arrival_datetime)
+                                    hora_de_reserva = booked_hour
+                            except Exception:
+                                # If all else fails, set to defaults
+                                hora_de_reserva = None
+                                tiempo_retraso = 0
+                        
+                        # Prepare arrival data
+                        arrival_data = {
+                            'Orden_de_compra': selected_order_tab1,
+                            'Proveedor': order_details['Proveedor'],
+                            'Numero_de_bultos': order_details['Numero_de_bultos'],
+                            'Hora_llegada': arrival_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+                            'Hora_inicio_atencion': None,
+                            'Hora_fin_atencion': None,
+                            'Tiempo_espera': None,
+                            'Tiempo_atencion': None,
+                            'Tiempo_total': None,
+                            'Tiempo_retraso': tiempo_retraso,
+                            'numero_de_semana': arrival_datetime.isocalendar()[1],
+                            'hora_de_reserva': hora_de_reserva
+                        }
+                        
+                        # Save to Excel
+                        with st.spinner("Guardando llegada..."):
+                            if save_arrival_to_excel(arrival_data):
+                                st.success("✅ Llegada registrada exitosamente!")
+                                if tiempo_retraso > 0:
+                                    st.warning(f"⏰ Retraso: {tiempo_retraso} minutos")
+                                elif tiempo_retraso < 0:
+                                    st.info(f"⚡ Adelanto: {abs(tiempo_retraso)} minutos")
+                                else:
+                                    st.success("🎯 Llegada puntual")
+                                
+                                # Wait 5 seconds before refreshing
+                                with st.spinner("Actualizando datos..."):
+                                    time.sleep(5)
+                                st.rerun()
+                            else:
+                                st.error("Error al guardar la llegada. Intente nuevamente.")
+                    else:
+                        st.error("Por favor complete todos los campos.")
     
     # ─────────────────────────────────────────────────────────────
     # TAB 2: Service Registration
@@ -978,223 +986,226 @@ def main():
     with tab2:
         st.markdown("*Registre los tiempos de inicio y fin de atención*")
         
-        # Order selection
-        selected_order_tab2 = st.selectbox(
-            "Orden de Compra:",
-            options=existing_arrivals if existing_arrivals else ["No hay llegadas registradas"],
-            disabled=not existing_arrivals,
-            key="order_select_tab2"
-        )
-        
-        if existing_arrivals and selected_order_tab2:
-            # Get arrival record
-            arrival_record = get_arrival_record(gestion_df, selected_order_tab2)
-            
-            if arrival_record is not None:
-                # Show arrival info
-                arrival_time_str = str(arrival_record['Hora_llegada'])
-                st.markdown(f'''
-                <div class="service-info">
-                    <strong>Proveedor:</strong> {arrival_record['Proveedor']} | 
-                    <strong>Llegada:</strong> {arrival_time_str.split(' ')[1][:5] if ' ' in arrival_time_str else 'N/A'} | 
-                    <strong>Número de Bultos:</strong> {arrival_record['Numero_de_bultos']}
-                </div>
-                ''', unsafe_allow_html=True)
-                
-                # Check if service times already registered
-                service_registered = (
-                    pd.notna(arrival_record['Hora_inicio_atencion']) and 
-                    pd.notna(arrival_record['Hora_fin_atencion'])
-                )
-                
-                if service_registered:
-                    st.success("✅ Atención ya registrada")
-                    # Show existing times
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Tiempo de Espera", f"{arrival_record['Tiempo_espera']} min")
-                        st.metric("Tiempo de Atención", f"{arrival_record['Tiempo_atencion']} min")
-                    with col2:
-                        st.metric("Tiempo Total", f"{arrival_record['Tiempo_total']} min")
-                else:
-                    st.warning("⏳ Pendiente de registrar atención")
-                    
-                    # Service time inputs - only show when not registered
-                    col1, col2 = st.columns(2)
-                    
-                    # Parse arrival time for defaults
-                    arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
-                    # Ensure default hour is within service hours (9-18)
-                    default_hour = max(9, min(18, arrival_datetime.hour))
-                    default_minute = arrival_datetime.minute  # Use exact minute instead of rounding
-                    
-                    with col1:
-                        st.write("**Hora de Inicio de Atención:**")
-                        
-                        start_time_col1, start_time_col2 = st.columns(2)
-                        with start_time_col1:
-                            service_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
-                            # Find the index for default hour
-                            try:
-                                start_hour_index = service_hours.index(default_hour)
-                            except ValueError:
-                                start_hour_index = 0  # Default to first option if not in range
-                            
-                            start_hour = st.selectbox(
-                                "Hora:",
-                                options=service_hours,
-                                index=start_hour_index,
-                                format_func=lambda x: f"{x:02d}",
-                                key="start_hour_tab2"
-                            )
-                        
-                        with start_time_col2:
-                            start_minute = st.selectbox(
-                                "Minutos:",
-                                options=list(range(0, 60, 1)),  # 1-minute intervals
-                                index=default_minute,  # Direct minute value
-                                format_func=lambda x: f"{x:02d}",
-                                key="start_minute_tab2"
-                            )
-                        
-                        start_time = dt_time(start_hour, start_minute)
-                    
-                    with col2:
-                        st.write("**Hora de Fin de Atención:**")
-                        
-                        end_time_col1, end_time_col2 = st.columns(2)
-                        with end_time_col1:
-                            service_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
-                            # Find the index for default hour
-                            try:
-                                end_hour_index = service_hours.index(default_hour)
-                            except ValueError:
-                                end_hour_index = 0  # Default to first option if not in range
-                            
-                            end_hour = st.selectbox(
-                                "Hora:",
-                                options=service_hours,
-                                index=end_hour_index,
-                                format_func=lambda x: f"{x:02d}",
-                                key="end_hour_tab2"
-                            )
-                        
-                        with end_time_col2:
-                            end_minute = st.selectbox(
-                                "Minutos:",
-                                options=list(range(0, 60, 1)),  # 1-minute intervals
-                                index=default_minute,  # Direct minute value
-                                format_func=lambda x: f"{x:02d}",
-                                key="end_minute_tab2"
-                            )
-                        
-                        end_time = dt_time(end_hour, end_minute)
-                    
-                    # Save service times button - only show when not registered
-                    if st.button("Guardar Atención", type="primary", key="save_service"):
-                        if start_time and end_time:
-                            today_date = datetime.now().date()
-                            hora_inicio = combine_date_time(today_date, start_time)
-                            hora_fin = combine_date_time(today_date, end_time)
-                            
-                            # Parse arrival time
-                            arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
-                            
-                            # Validate times
-                            if hora_inicio >= hora_fin:
-                                st.error("La hora de fin debe ser posterior a la hora de inicio.")
-                            elif hora_inicio < arrival_datetime:
-                                st.error("La hora de inicio de atención no puede ser anterior a la hora de llegada.")
-                            else:
-                                # Calculate times
-                                tiempo_espera = calculate_time_difference(arrival_datetime, hora_inicio)
-                                tiempo_atencion = calculate_time_difference(hora_inicio, hora_fin)
-                                tiempo_total = calculate_time_difference(arrival_datetime, hora_fin)
-                                
-                                # Prepare service data
-                                service_data = {
-                                    'Hora_inicio_atencion': hora_inicio.strftime('%Y-%m-%d %H:%M:%S'),
-                                    'Hora_fin_atencion': hora_fin.strftime('%Y-%m-%d %H:%M:%S'),
-                                    'Tiempo_espera': tiempo_espera,
-                                    'Tiempo_atencion': tiempo_atencion,
-                                    'Tiempo_total': tiempo_total
-                                }
-                                
-                                # Save to Excel
-                                with st.spinner("Guardando atención..."):
-                                    if update_service_times(selected_order_tab2, service_data):
-                                        st.success("✅ Atención registrada exitosamente!")
-                                        
-                                        # Calculate delay for summary (recalculate to ensure accuracy)
-                                        arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
-                                        
-                                        # Get the booked time from reservas_df
-                                        order_reserva = today_reservations[
-                                            today_reservations['Orden_de_compra'] == selected_order_tab2
-                                        ]
-                                        
-                                        tiempo_retraso_display = 0  # Default to 0 if can't calculate
-                                        if not order_reserva.empty:
-                                            booked_time_range = str(order_reserva.iloc[0]['Hora'])
-                                            # Try parsing as single time first (new format), then as range (old format)
-                                            booked_start_time = parse_single_time(booked_time_range)
-                                            if not booked_start_time:
-                                                booked_start_time = parse_time_range(booked_time_range)
-                                            
-                                            if booked_start_time:
-                                                booked_datetime = combine_date_time(arrival_datetime.date(), booked_start_time)
-                                                calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
-                                                if calculated_delay is not None:
-                                                    tiempo_retraso_display = calculated_delay
-                                            else:
-                                                # Fallback: manual calculation for formats like "10:00:00"
-                                                try:
-                                                    if ':' in booked_time_range:
-                                                        time_parts = booked_time_range.split(':')
-                                                        booked_hour = int(time_parts[0])
-                                                        booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-                                                        booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
-                                                        
-                                                        # Create booked datetime manually
-                                                        booked_datetime = datetime.combine(
-                                                            arrival_datetime.date(), 
-                                                            dt_time(booked_hour, booked_minute, booked_second)
-                                                        )
-                                                        
-                                                        # Calculate delay manually
-                                                        tiempo_retraso_display = calculate_time_difference(booked_datetime, arrival_datetime)
-                                                except Exception:
-                                                    # Keep default value of 0
-                                                    pass
-                                        
-                                        # Show summary
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            st.metric("Tiempo de Espera", f"{tiempo_espera} min")
-                                            st.metric("Tiempo de Atención", f"{tiempo_atencion} min")
-                                        with col2:
-                                            st.metric("Tiempo Total", f"{tiempo_total} min")
-                                            # Display calculated delay
-                                            if tiempo_retraso_display > 0:
-                                                st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
-                                            elif tiempo_retraso_display < 0:
-                                                st.metric("Tiempo de Adelanto", f"{abs(tiempo_retraso_display)} min")
-                                            else:
-                                                st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
-                                        
-                                        # Wait 5 seconds before refreshing
-                                        with st.spinner("Actualizando datos..."):
-                                            time.sleep(5)
-                                        st.rerun()
-                                    else:
-                                        st.error("Error al guardar la atención. Intente nuevamente.")
-                        else:
-                            st.error("Por favor complete todos los campos de tiempo.")
+        if no_reservations_today:
+            st.warning("No hay reservas programadas para hoy.")
         else:
-            st.markdown(
-                '<div class="service-info">⚠️ No hay llegadas registradas hoy. Primero debe registrar la llegada en la pestaña anterior.</div>', 
-                unsafe_allow_html=True
+            # Order selection
+            selected_order_tab2 = st.selectbox(
+                "Orden de Compra:",
+                options=existing_arrivals if existing_arrivals else ["No hay llegadas registradas"],  # Already sorted in get_existing_arrivals
+                disabled=not existing_arrivals,
+                key="order_select_tab2"
             )
+            
+            if existing_arrivals and selected_order_tab2:
+                # Get arrival record
+                arrival_record = get_arrival_record(gestion_df, selected_order_tab2)
+                
+                if arrival_record is not None:
+                    # Show arrival info
+                    arrival_time_str = str(arrival_record['Hora_llegada'])
+                    st.markdown(f'''
+                    <div class="service-info">
+                        <strong>Proveedor:</strong> {arrival_record['Proveedor']} | 
+                        <strong>Llegada:</strong> {arrival_time_str.split(' ')[1][:5] if ' ' in arrival_time_str else 'N/A'} | 
+                        <strong>Número de Bultos:</strong> {arrival_record['Numero_de_bultos']}
+                    </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    # Check if service times already registered
+                    service_registered = (
+                        pd.notna(arrival_record['Hora_inicio_atencion']) and 
+                        pd.notna(arrival_record['Hora_fin_atencion'])
+                    )
+                    
+                    if service_registered:
+                        st.success("✅ Atención ya registrada")
+                        # Show existing times
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Tiempo de Espera", f"{arrival_record['Tiempo_espera']} min")
+                            st.metric("Tiempo de Atención", f"{arrival_record['Tiempo_atencion']} min")
+                        with col2:
+                            st.metric("Tiempo Total", f"{arrival_record['Tiempo_total']} min")
+                    else:
+                        st.warning("⏳ Pendiente de registrar atención")
+                        
+                        # Service time inputs - only show when not registered
+                        col1, col2 = st.columns(2)
+                        
+                        # Parse arrival time for defaults
+                        arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
+                        # Ensure default hour is within service hours (9-18)
+                        default_hour = max(9, min(18, arrival_datetime.hour))
+                        default_minute = arrival_datetime.minute  # Use exact minute instead of rounding
+                        
+                        with col1:
+                            st.write("**Hora de Inicio de Atención:**")
+                            
+                            start_time_col1, start_time_col2 = st.columns(2)
+                            with start_time_col1:
+                                service_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
+                                # Find the index for default hour
+                                try:
+                                    start_hour_index = service_hours.index(default_hour)
+                                except ValueError:
+                                    start_hour_index = 0  # Default to first option if not in range
+                                
+                                start_hour = st.selectbox(
+                                    "Hora:",
+                                    options=service_hours,
+                                    index=start_hour_index,
+                                    format_func=lambda x: f"{x:02d}",
+                                    key="start_hour_tab2"
+                                )
+                            
+                            with start_time_col2:
+                                start_minute = st.selectbox(
+                                    "Minutos:",
+                                    options=list(range(0, 60, 1)),  # 1-minute intervals
+                                    index=default_minute,  # Direct minute value
+                                    format_func=lambda x: f"{x:02d}",
+                                    key="start_minute_tab2"
+                                )
+                            
+                            start_time = dt_time(start_hour, start_minute)
+                        
+                        with col2:
+                            st.write("**Hora de Fin de Atención:**")
+                            
+                            end_time_col1, end_time_col2 = st.columns(2)
+                            with end_time_col1:
+                                service_hours = list(range(9, 19))  # 09, 10, 11, 12, 13, 14, 15, 16, 17, 18
+                                # Find the index for default hour
+                                try:
+                                    end_hour_index = service_hours.index(default_hour)
+                                except ValueError:
+                                    end_hour_index = 0  # Default to first option if not in range
+                                
+                                end_hour = st.selectbox(
+                                    "Hora:",
+                                    options=service_hours,
+                                    index=end_hour_index,
+                                    format_func=lambda x: f"{x:02d}",
+                                    key="end_hour_tab2"
+                                )
+                            
+                            with end_time_col2:
+                                end_minute = st.selectbox(
+                                    "Minutos:",
+                                    options=list(range(0, 60, 1)),  # 1-minute intervals
+                                    index=default_minute,  # Direct minute value
+                                    format_func=lambda x: f"{x:02d}",
+                                    key="end_minute_tab2"
+                                )
+                            
+                            end_time = dt_time(end_hour, end_minute)
+                        
+                        # Save service times button - only show when not registered
+                        if st.button("Guardar Atención", type="primary", key="save_service"):
+                            if start_time and end_time:
+                                today_date = datetime.now().date()
+                                hora_inicio = combine_date_time(today_date, start_time)
+                                hora_fin = combine_date_time(today_date, end_time)
+                                
+                                # Parse arrival time
+                                arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
+                                
+                                # Validate times
+                                if hora_inicio >= hora_fin:
+                                    st.error("La hora de fin debe ser posterior a la hora de inicio.")
+                                elif hora_inicio < arrival_datetime:
+                                    st.error("La hora de inicio de atención no puede ser anterior a la hora de llegada.")
+                                else:
+                                    # Calculate times
+                                    tiempo_espera = calculate_time_difference(arrival_datetime, hora_inicio)
+                                    tiempo_atencion = calculate_time_difference(hora_inicio, hora_fin)
+                                    tiempo_total = calculate_time_difference(arrival_datetime, hora_fin)
+                                    
+                                    # Prepare service data
+                                    service_data = {
+                                        'Hora_inicio_atencion': hora_inicio.strftime('%Y-%m-%d %H:%M:%S'),
+                                        'Hora_fin_atencion': hora_fin.strftime('%Y-%m-%d %H:%M:%S'),
+                                        'Tiempo_espera': tiempo_espera,
+                                        'Tiempo_atencion': tiempo_atencion,
+                                        'Tiempo_total': tiempo_total
+                                    }
+                                    
+                                    # Save to Excel
+                                    with st.spinner("Guardando atención..."):
+                                        if update_service_times(selected_order_tab2, service_data):
+                                            st.success("✅ Atención registrada exitosamente!")
+                                            
+                                            # Calculate delay for summary (recalculate to ensure accuracy)
+                                            arrival_datetime = datetime.fromisoformat(str(arrival_record['Hora_llegada']))
+                                            
+                                            # Get the booked time from reservas_df
+                                            order_reserva = today_reservations[
+                                                today_reservations['Orden_de_compra'] == selected_order_tab2
+                                            ]
+                                            
+                                            tiempo_retraso_display = 0  # Default to 0 if can't calculate
+                                            if not order_reserva.empty:
+                                                booked_time_range = str(order_reserva.iloc[0]['Hora'])
+                                                # Try parsing as single time first (new format), then as range (old format)
+                                                booked_start_time = parse_single_time(booked_time_range)
+                                                if not booked_start_time:
+                                                    booked_start_time = parse_time_range(booked_time_range)
+                                                
+                                                if booked_start_time:
+                                                    booked_datetime = combine_date_time(arrival_datetime.date(), booked_start_time)
+                                                    calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
+                                                    if calculated_delay is not None:
+                                                        tiempo_retraso_display = calculated_delay
+                                                else:
+                                                    # Fallback: manual calculation for formats like "10:00:00"
+                                                    try:
+                                                        if ':' in booked_time_range:
+                                                            time_parts = booked_time_range.split(':')
+                                                            booked_hour = int(time_parts[0])
+                                                            booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                                                            booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                                                            
+                                                            # Create booked datetime manually
+                                                            booked_datetime = datetime.combine(
+                                                                arrival_datetime.date(), 
+                                                                dt_time(booked_hour, booked_minute, booked_second)
+                                                            )
+                                                            
+                                                            # Calculate delay manually
+                                                            tiempo_retraso_display = calculate_time_difference(booked_datetime, arrival_datetime)
+                                                    except Exception:
+                                                        # Keep default value of 0
+                                                        pass
+                                            
+                                            # Show summary
+                                            col1, col2 = st.columns(2)
+                                            with col1:
+                                                st.metric("Tiempo de Espera", f"{tiempo_espera} min")
+                                                st.metric("Tiempo de Atención", f"{tiempo_atencion} min")
+                                            with col2:
+                                                st.metric("Tiempo Total", f"{tiempo_total} min")
+                                                # Display calculated delay
+                                                if tiempo_retraso_display > 0:
+                                                    st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
+                                                elif tiempo_retraso_display < 0:
+                                                    st.metric("Tiempo de Adelanto", f"{abs(tiempo_retraso_display)} min")
+                                                else:
+                                                    st.metric("Tiempo de Retraso", f"{tiempo_retraso_display} min")
+                                            
+                                            # Wait 5 seconds before refreshing
+                                            with st.spinner("Actualizando datos..."):
+                                                time.sleep(5)
+                                            st.rerun()
+                                        else:
+                                            st.error("Error al guardar la atención. Intente nuevamente.")
+                            else:
+                                st.error("Por favor complete todos los campos de tiempo.")
+            else:
+                st.markdown(
+                    '<div class="service-info">⚠️ No hay llegadas registradas hoy. Primero debe registrar la llegada en la pestaña anterior.</div>', 
+                    unsafe_allow_html=True
+                )
     
     # ─────────────────────────────────────────────────────────────
     # TAB 3: Dashboard
