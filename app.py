@@ -338,6 +338,28 @@ def aggregate_by_week(df, provider_filter=None):
     
     return weekly_data
 
+def aggregate_by_hour_from_filtered(filtered_df, provider_filter=None):
+    """Aggregate data by reservation hour from already filtered data"""
+    if filtered_df.empty:
+        return pd.DataFrame()
+    
+    # Filter by provider if specified
+    if provider_filter and provider_filter != "Todos":
+        filtered_df = filtered_df[filtered_df['Proveedor'] == provider_filter]
+    
+    if filtered_df.empty:
+        return pd.DataFrame()
+    
+    # Aggregate by hour
+    hourly_data = filtered_df.groupby('hora_de_reserva').agg({
+        'Tiempo_espera': 'mean',
+        'Tiempo_atencion': 'mean',
+        'Tiempo_total': 'mean', 
+        'Tiempo_retraso': 'mean'
+    }).round(1).reset_index()
+    
+    return hourly_data
+
 def aggregate_by_hour(df, weeks_back, provider_filter=None):
     """Aggregate data by reservation hour for selected weeks and provider"""
     if df.empty:
@@ -1223,6 +1245,11 @@ def main():
         # Get filtered data
         filtered_data = get_completed_weeks_data(gestion_df, selected_weeks)
         
+        # Debug info - you can remove this later
+        current_week = get_current_week()
+        target_weeks = [current_week - i for i in range(1, selected_weeks + 1)]
+        st.caption(f"Debug: Semana actual: {current_week}, Semanas objetivo: {target_weeks}, Registros encontrados: {len(filtered_data)}")
+        
         if filtered_data.empty:
             st.warning(f"📊 No hay datos completos para las últimas {selected_weeks} semanas.")
             return
@@ -1284,7 +1311,7 @@ def main():
         
         # Graph 3: Hourly Time Metrics
         st.subheader("🕐 Gráfico 3: Tiempos por Hora de Reserva")
-        hourly_data = aggregate_by_hour(gestion_df, selected_weeks, selected_provider)
+        hourly_data = aggregate_by_hour_from_filtered(filtered_data, selected_provider)
         
         if not hourly_data.empty:
             fig3 = create_hourly_times_chart(hourly_data)
