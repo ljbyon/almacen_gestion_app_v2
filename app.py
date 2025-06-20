@@ -879,9 +879,6 @@ def main():
                 arrival_time = dt_time(arrival_hour, arrival_minute)
                 
                 st.info(f"Fecha: {today_date.strftime('%Y-%m-%d')}")
-                
-                # Debug info (you can remove this later)
-                st.caption(f"Hora reservada: {hora_str} → Hora por defecto: {default_hour:02d}:{default_minute:02d}")
             else:
                 # When no order is selected, set arrival_time to None
                 arrival_time = None
