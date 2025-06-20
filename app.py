@@ -879,37 +879,24 @@ def main():
                     tiempo_retraso = 0  # Default to 0 if can't calculate
                     hora_de_reserva = None
                     
-                    # Debug: Let's see what the actual time value looks like
+                    # Get the actual time value from Excel
                     hora_str = str(order_details['Hora']).strip()
-                    
-                    # Show debug info for troubleshooting
-                    st.write(f"DEBUG - Hora reservada: {hora_str}")
-                    st.write(f"DEBUG - Type of Hora: {type(order_details['Hora'])}")
                     
                     # Try parsing as single time first (new format), then as range (old format)
                     booked_start_time = parse_single_time(hora_str)
                     if not booked_start_time:
                         booked_start_time = parse_time_range(hora_str)
                     
-                    st.write(f"DEBUG - Parsed time: {booked_start_time}")
-                    st.write(f"DEBUG - Arrival time: {arrival_datetime}")
-                    
                     if booked_start_time:
                         booked_datetime = combine_date_time(datetime.now().date(), booked_start_time)
-                        st.write(f"DEBUG - Booked datetime: {booked_datetime}")
-                        
                         calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
-                        st.write(f"DEBUG - Calculated delay: {calculated_delay}")
-                        
                         if calculated_delay is not None:
                             tiempo_retraso = calculated_delay
                         # Extract hour for hora_de_reserva (e.g., 10 for "10:00:00")
                         hora_de_reserva = booked_start_time.hour
                     else:
-                        st.write("DEBUG - Could not parse booked time, trying manual calculation")
-                        # Fallback: try to extract hour and calculate delay manually
+                        # Fallback: manual calculation for formats like "10:00:00"
                         try:
-                            # Handle formats like "10:00:00", "10:30:00", etc.
                             if ':' in hora_str:
                                 time_parts = hora_str.split(':')
                                 booked_hour = int(time_parts[0])
@@ -925,18 +912,10 @@ def main():
                                 # Calculate delay manually
                                 tiempo_retraso = calculate_time_difference(booked_datetime, arrival_datetime)
                                 hora_de_reserva = booked_hour
-                                
-                                st.write(f"DEBUG - Manual booked datetime: {booked_datetime}")
-                                st.write(f"DEBUG - Manual calculated delay: {tiempo_retraso}")
-                                st.write(f"DEBUG - Manually extracted hour: {hora_de_reserva}")
-                        except Exception as e:
+                        except Exception:
                             # If all else fails, set to defaults
                             hora_de_reserva = None
                             tiempo_retraso = 0
-                            st.write(f"DEBUG - Failed manual calculation: {str(e)}")
-                    
-                    st.write(f"DEBUG - Final tiempo_retraso: {tiempo_retraso}")
-                    st.write(f"DEBUG - Final hora_de_reserva: {hora_de_reserva}")
                     
                     # Prepare arrival data
                     arrival_data = {
@@ -1142,11 +1121,32 @@ def main():
                                             booked_start_time = parse_single_time(booked_time_range)
                                             if not booked_start_time:
                                                 booked_start_time = parse_time_range(booked_time_range)
+                                            
                                             if booked_start_time:
                                                 booked_datetime = combine_date_time(arrival_datetime.date(), booked_start_time)
                                                 calculated_delay = calculate_time_difference(booked_datetime, arrival_datetime)
                                                 if calculated_delay is not None:
                                                     tiempo_retraso_display = calculated_delay
+                                            else:
+                                                # Fallback: manual calculation for formats like "10:00:00"
+                                                try:
+                                                    if ':' in booked_time_range:
+                                                        time_parts = booked_time_range.split(':')
+                                                        booked_hour = int(time_parts[0])
+                                                        booked_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                                                        booked_second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                                                        
+                                                        # Create booked datetime manually
+                                                        booked_datetime = datetime.combine(
+                                                            arrival_datetime.date(), 
+                                                            dt_time(booked_hour, booked_minute, booked_second)
+                                                        )
+                                                        
+                                                        # Calculate delay manually
+                                                        tiempo_retraso_display = calculate_time_difference(booked_datetime, arrival_datetime)
+                                                except Exception:
+                                                    # Keep default value of 0
+                                                    pass
                                         
                                         # Show summary
                                         col1, col2 = st.columns(2)
