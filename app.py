@@ -184,7 +184,7 @@ def download_excel_to_memory():
         
         # Load all sheets
         credentials_df = pd.read_excel(file_content, sheet_name="proveedor_credencial", dtype=str)
-        reservas_df = pd.read_excel(file_content, sheet_name="proveedor_reservas")
+        reservas_df = pd.read_excel(file_content, sheet_name="proveedor_reservas", dtype={'Orden_de_compra': str})
         
         # Try to load gestion sheet, create if doesn't exist
         try:
@@ -575,7 +575,7 @@ def get_pending_arrivals(today_reservations, gestion_df):
         ~today_reservations['Orden_de_compra'].isin(processed_orders)
     ]
     
-    return sorted(pending['Orden_de_compra'].tolist())
+    return sorted(pending['Orden_de_compra'].astype(str).tolist())
 
 def get_arrival_record(gestion_df, orden_compra):
     """Get existing arrival record for an order"""
